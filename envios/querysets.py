@@ -41,9 +41,16 @@ class EncomiendaQuerySet(models.QuerySet):
 
     # ── Optimización de consultas ──────────────────
     def con_relaciones(self):
-        """Precarga las relaciones más usadas (evita el problema N+1)"""
+        """
+        Precarga las relaciones más usadas (evita el problema N+1).
+        select_related -> hace JOIN para ForeignKeys (1 sola query)
+        prefetch_related -> hace query separada para relaciones inversas
+        """
         return self.select_related(
             'remitente', 'destinatario', 'ruta', 'empleado_registro'
+        ).prefetch_related(
+            'historial',
+            'historial__empleado',
         )
 
 class ClienteQuerySet(models.QuerySet):

@@ -7,3 +7,14 @@ __pycache__/
 *.pyc
 db.sqlite3
 .DS_Store
+
+# Django build/static/media directories
+staticfiles/
+media/
+
+# Test cache
+.pytest_cache/
+
+# Scratch/temp files
+*.log
+

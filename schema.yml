@@ -1,0 +1,1190 @@
+openapi: 3.0.3
+info:
+  title: API Sistema de Gestión de Encomiendas
+  version: 1.0.0
+  description: "\n    API REST para gestionar el ciclo de vida de encomiendas.\n    Incluye
+    registro de envíos, cambio de estado, historial\n    y estadísticas del sistema.\n
+    \   "
+paths:
+  /api/v1/auth/token/:
+    post:
+      operationId: api_v1_auth_token_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EncomiendaTokenRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EncomiendaTokenRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EncomiendaTokenRequest'
+        required: true
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: api_v1_auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/auth/cookie/login/:
+    post:
+      operationId: api_v1_auth_cookie_login_create
+      description: Autentica al usuario y guarda el JWT en una cookie HttpOnly.
+      summary: Login con HttpOnly Cookie
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginCookieRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginCookieRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginCookieRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+  /api/v1/auth/cookie/logout/:
+    post:
+      operationId: api_v1_auth_cookie_logout_create
+      description: Elimina las cookies de autenticación.
+      summary: Logout con HttpOnly Cookie
+      tags:
+      - Auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+  /api/v1/encomiendas/:
+    get:
+      operationId: api_v1_encomiendas_list
+      description: Devuelve la lista paginada de encomiendas. Soporta filtros por
+        estado, búsqueda y ordenamiento.
+      summary: Listar encomiendas
+      parameters:
+      - in: query
+        name: con_retraso
+        schema:
+          type: string
+      - in: query
+        name: desde
+        schema:
+          type: string
+      - in: query
+        name: estado
+        schema:
+          type: string
+          enum:
+          - DE
+          - DV
+          - EN
+          - PE
+          - TR
+        description: |-
+          * `PE` - Pendiente
+          * `TR` - En tránsito
+          * `DE` - En destino
+          * `EN` - Entregado
+          * `DV` - Devuelto
+      - in: query
+        name: hasta
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Qué campo usar para ordenar los resultados.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Un número de página dentro del conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a devolver por página.
+        schema:
+          type: integer
+      - in: query
+        name: remitente
+        schema:
+          type: string
+      - in: query
+        name: ruta
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: Un término de búsqueda.
+        schema:
+          type: string
+      tags:
+      - Encomiendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEncomiendaListList'
+          description: ''
+    post:
+      operationId: api_v1_encomiendas_create
+      description: Registra una nueva encomienda en el sistema.
+      summary: Crear encomienda
+      tags:
+      - Encomiendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EncomiendaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EncomiendaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EncomiendaRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Encomienda'
+          description: ''
+  /api/v1/encomiendas/bulk_create/:
+    post:
+      operationId: api_v1_encomiendas_bulk_create_create
+      description: 'Crea varias encomiendas en una sola petición. Body: lista de objetos.'
+      summary: Crear múltiples encomiendas
+      tags:
+      - Encomiendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EncomiendaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EncomiendaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EncomiendaRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Encomienda'
+          description: ''
+  /api/v1/encomiendas/bulk_estado/:
+    patch:
+      operationId: api_v1_encomiendas_bulk_estado_partial_update
+      description: Cambia el estado de varias encomiendas. Reporta cuáles tuvieron
+        errores.
+      summary: Cambiar estado a múltiples encomiendas
+      tags:
+      - Encomiendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEncomiendaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEncomiendaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEncomiendaRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Encomienda'
+          description: ''
+  /api/v1/encomiendas/con_retraso/:
+    get:
+      operationId: api_v1_encomiendas_con_retraso_list
+      description: Lista todas las encomiendas activas cuya fecha estimada de entrega
+        ya pasó.
+      summary: Encomiendas con retraso
+      parameters:
+      - in: query
+        name: con_retraso
+        schema:
+          type: string
+      - in: query
+        name: desde
+        schema:
+          type: string
+      - in: query
+        name: estado
+        schema:
+          type: string
+          enum:
+          - DE
+          - DV
+          - EN
+          - PE
+          - TR
+        description: |-
+          * `PE` - Pendiente
+          * `TR` - En tránsito
+          * `DE` - En destino
+          * `EN` - Entregado
+          * `DV` - Devuelto
+      - in: query
+        name: hasta
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Qué campo usar para ordenar los resultados.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Un número de página dentro del conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a devolver por página.
+        schema:
+          type: integer
+      - in: query
+        name: remitente
+        schema:
+          type: string
+      - in: query
+        name: ruta
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: Un término de búsqueda.
+        schema:
+          type: string
+      tags:
+      - Encomiendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEncomiendaList'
+          description: ''
+  /api/v1/encomiendas/estadisticas/:
+    get:
+      operationId: api_v1_encomiendas_estadisticas_retrieve
+      description: 'Contadores del sistema: activas, en tránsito, con retraso y entregadas
+        hoy. Cacheado 15 minutos.'
+      summary: Estadísticas globales
+      tags:
+      - Encomiendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: Objeto con contadores
+  /api/v1/encomiendas/pendientes/:
+    get:
+      operationId: api_v1_encomiendas_pendientes_retrieve
+      description: Lista todas las encomiendas en estado Pendiente.
+      summary: Encomiendas pendientes
+      tags:
+      - Encomiendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Encomienda'
+          description: ''
+  /api/v1/encomiendas/{id}/:
+    delete:
+      operationId: api_v1_encomiendas_destroy
+      description: |-
+        ModelViewSet genera automáticamente:
+        list()           → GET    /encomiendas/
+        create()         → POST   /encomiendas/
+        retrieve()       → GET    /encomiendas/{pk}/
+        update()         → PUT    /encomiendas/{pk}/
+        partial_update() → PATCH  /encomiendas/{pk}/
+        destroy()        → DELETE /encomiendas/{pk}/
+      summary: Eliminar encomienda
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Un valor de entero único que identifique este Encomienda.
+        required: true
+      tags:
+      - Encomiendas
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+    get:
+      operationId: api_v1_encomiendas_retrieve
+      description: Devuelve los datos completos de una encomienda con remitente, destinatario,
+        ruta e historial de estados.
+      summary: Detalle de encomienda
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Un valor de entero único que identifique este Encomienda.
+        required: true
+      tags:
+      - Encomiendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EncomiendaDetail'
+          description: ''
+    put:
+      operationId: api_v1_encomiendas_update
+      description: |-
+        ModelViewSet genera automáticamente:
+        list()           → GET    /encomiendas/
+        create()         → POST   /encomiendas/
+        retrieve()       → GET    /encomiendas/{pk}/
+        update()         → PUT    /encomiendas/{pk}/
+        partial_update() → PATCH  /encomiendas/{pk}/
+        destroy()        → DELETE /encomiendas/{pk}/
+      summary: Actualizar encomienda
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Un valor de entero único que identifique este Encomienda.
+        required: true
+      tags:
+      - Encomiendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EncomiendaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EncomiendaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EncomiendaRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Encomienda'
+          description: ''
+    patch:
+      operationId: api_v1_encomiendas_partial_update
+      description: |-
+        ModelViewSet genera automáticamente:
+        list()           → GET    /encomiendas/
+        create()         → POST   /encomiendas/
+        retrieve()       → GET    /encomiendas/{pk}/
+        update()         → PUT    /encomiendas/{pk}/
+        partial_update() → PATCH  /encomiendas/{pk}/
+        destroy()        → DELETE /encomiendas/{pk}/
+      summary: Actualizar parcial
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Un valor de entero único que identifique este Encomienda.
+        required: true
+      tags:
+      - Encomiendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEncomiendaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEncomiendaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEncomiendaRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Encomienda'
+          description: ''
+  /api/v1/encomiendas/{id}/cambiar_estado/:
+    post:
+      operationId: api_v1_encomiendas_cambiar_estado_create
+      description: "\n        Cambia el estado de una encomienda y registra el cambio\n
+        \       automáticamente en el historial de estados.\n        Estados: PE (Pendiente),
+        TR (En tránsito), DE (En destino),\n        EN (Entregado), DV (Devuelto)\n
+        \       "
+      summary: Cambiar estado de encomienda
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Un valor de entero único que identifique este Encomienda.
+        required: true
+      tags:
+      - Encomiendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+            examples:
+              PasarAEnTránsito:
+                value:
+                  estado: TR
+                  observacion: Recogido en agencia Lima
+                summary: Pasar a En tránsito
+              MarcarComoEntregado:
+                value:
+                  estado: EN
+                  observacion: Entregado al destinatario
+                summary: Marcar como Entregado
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Encomienda'
+          description: ''
+        '400':
+          description: Estado inválido o ya en ese estado
+  /api/v1/encomiendas/{id}/historial/:
+    get:
+      operationId: api_v1_encomiendas_historial_retrieve
+      description: Devuelve el historial de cambios de estado de una encomienda, paginado
+        con limit/offset.
+      summary: Historial de estados
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Un valor de entero único que identifique este Encomienda.
+        required: true
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 10
+        description: Número de resultados
+      - in: query
+        name: offset
+        schema:
+          type: integer
+          default: 0
+        description: Posición de inicio
+      tags:
+      - Encomiendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Encomienda'
+          description: ''
+  /api/v1/clientes/:
+    get:
+      operationId: api_v1_clientes_list
+      description: Devuelve todos los clientes con estado Activo, paginados de 20
+        en 20.
+      summary: Listar clientes activos
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Qué campo usar para ordenar los resultados.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Un número de página dentro del conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a devolver por página.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: Un término de búsqueda.
+        schema:
+          type: string
+      tags:
+      - Clientes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClienteList'
+          description: ''
+  /api/v1/rutas/:
+    get:
+      operationId: api_v1_rutas_list
+      description: Devuelve todas las rutas con estado Activo. Sin paginación.
+      summary: Listar rutas activas
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Qué campo usar para ordenar los resultados.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: Un término de búsqueda.
+        schema:
+          type: string
+      tags:
+      - Rutas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ruta'
+          description: ''
+components:
+  schemas:
+    Cliente:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        tipo_doc:
+          $ref: '#/components/schemas/TipoDocEnum'
+        nro_doc:
+          type: string
+          maxLength: 15
+        nombres:
+          type: string
+          maxLength: 100
+        apellidos:
+          type: string
+          maxLength: 100
+        nombre_completo:
+          type: string
+          readOnly: true
+        telefono:
+          type: string
+          nullable: true
+          maxLength: 15
+        email:
+          type: string
+          format: email
+          nullable: true
+          maxLength: 254
+        esta_activo:
+          type: string
+          readOnly: true
+      required:
+      - apellidos
+      - esta_activo
+      - id
+      - nombre_completo
+      - nombres
+      - nro_doc
+    Encomienda:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        codigo:
+          type: string
+          maxLength: 20
+        descripcion:
+          type: string
+        descripcion_corta:
+          type: string
+          readOnly: true
+        peso_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,6}(?:\.\d{0,2})?$
+        volumen_cm3:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        costo_envio:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        remitente:
+          type: integer
+        destinatario:
+          type: integer
+        ruta:
+          type: integer
+        empleado_registro:
+          type: integer
+          readOnly: true
+        estado:
+          $ref: '#/components/schemas/Estado4bdEnum'
+        estado_display:
+          type: string
+          readOnly: true
+        fecha_registro:
+          type: string
+          format: date-time
+          readOnly: true
+        fecha_entrega_est:
+          type: string
+          format: date
+          nullable: true
+        fecha_entrega_real:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        esta_entregada:
+          type: string
+          readOnly: true
+        tiene_retraso:
+          type: string
+          readOnly: true
+        dias_en_transito:
+          type: string
+          readOnly: true
+        observaciones:
+          type: string
+          nullable: true
+      required:
+      - codigo
+      - costo_envio
+      - descripcion
+      - descripcion_corta
+      - destinatario
+      - dias_en_transito
+      - empleado_registro
+      - esta_entregada
+      - estado_display
+      - fecha_entrega_real
+      - fecha_registro
+      - id
+      - peso_kg
+      - remitente
+      - ruta
+      - tiene_retraso
+    EncomiendaDetail:
+      type: object
+      description: |-
+        Para GET: devuelve objetos anidados completos
+        Para POST/PUT/PATCH: acepta solo IDs (write_only)
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        codigo:
+          type: string
+          maxLength: 20
+        descripcion:
+          type: string
+        peso_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,6}(?:\.\d{0,2})?$
+        remitente:
+          allOf:
+          - $ref: '#/components/schemas/Cliente'
+          readOnly: true
+        destinatario:
+          allOf:
+          - $ref: '#/components/schemas/Cliente'
+          readOnly: true
+        ruta:
+          allOf:
+          - $ref: '#/components/schemas/Ruta'
+          readOnly: true
+        estado:
+          $ref: '#/components/schemas/Estado4bdEnum'
+        costo_envio:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        fecha_registro:
+          type: string
+          format: date-time
+          readOnly: true
+        fecha_entrega_est:
+          type: string
+          format: date
+          nullable: true
+        fecha_entrega_real:
+          type: string
+          format: date
+          nullable: true
+        esta_entregada:
+          type: string
+          readOnly: true
+        tiene_retraso:
+          type: string
+          readOnly: true
+        dias_en_transito:
+          type: string
+          readOnly: true
+        historial:
+          type: string
+          readOnly: true
+        observaciones:
+          type: string
+          nullable: true
+      required:
+      - codigo
+      - costo_envio
+      - descripcion
+      - destinatario
+      - dias_en_transito
+      - esta_entregada
+      - fecha_registro
+      - historial
+      - id
+      - peso_kg
+      - remitente
+      - ruta
+      - tiene_retraso
+    EncomiendaList:
+      type: object
+      description: |-
+        Serializer optimizado para el listado.
+        Solo los campos necesarios para mostrar la tabla.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        codigo:
+          type: string
+          maxLength: 20
+        estado:
+          $ref: '#/components/schemas/Estado4bdEnum'
+        estado_display:
+          type: string
+          readOnly: true
+        remitente_nombre:
+          type: string
+          readOnly: true
+        destinatario_nombre:
+          type: string
+          readOnly: true
+        ruta_destino:
+          type: string
+          readOnly: true
+        peso_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,6}(?:\.\d{0,2})?$
+        costo_envio:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        fecha_registro:
+          type: string
+          format: date-time
+          readOnly: true
+        fecha_entrega_est:
+          type: string
+          format: date
+          nullable: true
+        tiene_retraso:
+          type: string
+          readOnly: true
+      required:
+      - codigo
+      - costo_envio
+      - destinatario_nombre
+      - estado_display
+      - fecha_registro
+      - id
+      - peso_kg
+      - remitente_nombre
+      - ruta_destino
+      - tiene_retraso
+    EncomiendaRequest:
+      type: object
+      properties:
+        codigo:
+          type: string
+          minLength: 1
+          maxLength: 20
+        descripcion:
+          type: string
+          minLength: 1
+        peso_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,6}(?:\.\d{0,2})?$
+        volumen_cm3:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        costo_envio:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        remitente:
+          type: integer
+        destinatario:
+          type: integer
+        ruta:
+          type: integer
+        estado:
+          $ref: '#/components/schemas/Estado4bdEnum'
+        fecha_entrega_est:
+          type: string
+          format: date
+          nullable: true
+        observaciones:
+          type: string
+          nullable: true
+      required:
+      - codigo
+      - costo_envio
+      - descripcion
+      - destinatario
+      - peso_kg
+      - remitente
+      - ruta
+    EncomiendaTokenRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    Estado4bdEnum:
+      enum:
+      - PE
+      - TR
+      - DE
+      - EN
+      - DV
+      type: string
+      description: |-
+        * `PE` - Pendiente
+        * `TR` - En tránsito
+        * `DE` - En destino
+        * `EN` - Entregado
+        * `DV` - Devuelto
+    LoginCookieRequestRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - password
+      - username
+    Message:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
+    PaginatedClienteList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cliente'
+    PaginatedEncomiendaList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 120
+        next:
+          type: string
+          nullable: true
+        previous:
+          type: string
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Encomienda'
+    PaginatedEncomiendaListList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 120
+        next:
+          type: string
+          nullable: true
+        previous:
+          type: string
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/EncomiendaList'
+    PatchedEncomiendaRequest:
+      type: object
+      properties:
+        codigo:
+          type: string
+          minLength: 1
+          maxLength: 20
+        descripcion:
+          type: string
+          minLength: 1
+        peso_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,6}(?:\.\d{0,2})?$
+        volumen_cm3:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        costo_envio:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        remitente:
+          type: integer
+        destinatario:
+          type: integer
+        ruta:
+          type: integer
+        estado:
+          $ref: '#/components/schemas/Estado4bdEnum'
+        fecha_entrega_est:
+          type: string
+          format: date
+          nullable: true
+        observaciones:
+          type: string
+          nullable: true
+    Ruta:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        codigo:
+          type: string
+          maxLength: 10
+        origen:
+          type: string
+          maxLength: 100
+        destino:
+          type: string
+          maxLength: 100
+        precio_base:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        dias_entrega:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        estado:
+          allOf:
+          - $ref: '#/components/schemas/RutaEstadoEnum'
+          minimum: -2147483648
+          maximum: 2147483647
+      required:
+      - codigo
+      - destino
+      - id
+      - origen
+      - precio_base
+    RutaEstadoEnum:
+      enum:
+      - 1
+      - 9
+      type: integer
+      description: |-
+        * `1` - Activo
+        * `9` - De baja
+    TipoDocEnum:
+      enum:
+      - DNI
+      - RUC
+      - PAS
+      type: string
+      description: |-
+        * `DNI` - DNI
+        * `RUC` - RUC
+        * `PAS` - Pasaporte
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+tags:
+- name: Encomiendas
+  description: Gestión de envíos
+- name: Clientes
+  description: Listado de clientes activos
+- name: Rutas
+  description: Rutas disponibles
+- name: Auth
+  description: Autenticación JWT

@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% block title %}Detalle Encomienda {{ encomienda.codigo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h3">Detalle de Encomienda <span class="badge-estado badge-{{ encomienda.estado }} ms-2">{{ encomienda.get_estado_display }}</span></h2>
+    <div>
+        <a href="{% url 'encomienda_lista' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Información Principal -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Información General</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Código</p>
+                        <h6>{{ encomienda.codigo }}</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Fecha Registro</p>
+                        <h6>{{ encomienda.fecha_registro|date:'d/m/Y H:i' }}</h6>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <p class="text-muted mb-1">Descripción</p>
+                    <p>{{ encomienda.descripcion }}</p>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Remitente</p>
+                        <h6>{{ encomienda.remitente.nombre_completo }}</h6>
+                        <p class="small text-muted mb-0">Doc: {{ encomienda.remitente.nro_doc }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Destinatario</p>
+                        <h6>{{ encomienda.destinatario.nombre_completo }}</h6>
+                        <p class="small text-muted mb-0">Doc: {{ encomienda.destinatario.nro_doc }}</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Ruta</p>
+                        <h6>{{ encomienda.ruta.origen.nombre }} <i class="fas fa-arrow-right mx-1"></i> {{ encomienda.ruta.destino.nombre }}</h6>
+                    </div>
+                    <div class="col-md-3">
+                        <p class="text-muted mb-1">Peso</p>
+                        <h6>{{ encomienda.peso_kg }} kg</h6>
+                    </div>
+                    <div class="col-md-3">
+                        <p class="text-muted mb-1">Costo</p>
+                        <h6>S/ {{ encomienda.costo_envio }}</h6>
+                    </div>
+                </div>
+                
+                {% if encomienda.observaciones %}
+                <div class="alert alert-secondary mb-0">
+                    <strong>Observaciones:</strong> {{ encomienda.observaciones }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Lateral: Estado e Historial -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Gestión de Estado</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <p class="mb-1 text-muted">Días en Tránsito</p>
+                    <h4 class="mb-0">{{ encomienda.dias_en_transito }} días</h4>
+                </div>
+                
+                {% if encomienda.tiene_retraso %}
+                <div class="alert alert-danger py-2">
+                    <i class="fas fa-exclamation-triangle me-1"></i> Esta encomienda presenta retraso.
+                </div>
+                {% endif %}
+                
+                {% if encomienda.fecha_entrega_real %}
+                <div class="mb-3">
+                    <p class="mb-1 text-muted">Fecha de Entrega</p>
+                    <h5 class="text-success">{{ encomienda.fecha_entrega_real|date:'d/m/Y H:i' }}</h5>
+                </div>
+                {% endif %}
+                
+                <hr>
+                
+                <!-- Formulario para cambiar de estado -->
+                <form method="post" action="{% url 'encomienda_cambiar_estado' encomienda.pk %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Cambiar Estado</label>
+                        <select name="estado" class="form-select" id="selectEstado" required>
+                            <option value="PE">Pendiente</option>
+                            <option value="TR">En tránsito</option>
+                            <option value="DE">En destino</option>
+                            <option value="EN">Entregado</option>
+                            <option value="DV">Devuelto</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Observación (Opcional)</label>
+                        <textarea name="observacion" class="form-control" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Actualizar Estado</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Historial de Estados</h6>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for hist in historial %}
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ hist.get_estado_nuevo_display }}</strong>
+                        <small class="text-muted">{{ hist.fecha_cambio|date:'d/m/Y H:i' }}</small>
+                    </div>
+                    <div class="text-muted small">
+                        Por: {{ hist.empleado.nombres }} {{ hist.empleado.apellidos }}
+                        {% if hist.observacion %}
+                        <br><em>Nota: {{ hist.observacion }}</em>
+                        {% endif %}
+                    </div>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted">No hay historial registrado.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Este codigo solo carga en esta pagina
+  document.getElementById('selectEstado').value = '{{ encomienda.estado }}';
+</script>
+{% endblock %}

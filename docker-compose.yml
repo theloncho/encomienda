@@ -3,10 +3,10 @@ version: '3.9'
 
 services:
 
-  # Servicio de la app Django
+  # Servicio de la app Django con servidor Daphne (ASGI/WebSockets)
   web:
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
+    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
     volumes:
       - .:/app        # monta el código en tiempo real
     ports:
@@ -15,6 +15,9 @@ services:
       - .env          # variables de entorno
     depends_on:
       - db
+      - redis
+    environment:
+      - REDIS_URL=redis://redis:6379/1
 
   # Servicio de PostgreSQL
   db:
@@ -26,5 +29,32 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
 
+  # Servicio de Redis como Channel Layer
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Panel de administración de BD
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
 volumes:
   postgres_data:
+  redis_data:

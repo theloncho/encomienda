@@ -179,7 +179,56 @@ class Encomienda(models.Model):
             empleado=empleado,
             observacion=observacion
         )
+        
+        # Disparar notificaciones en tiempo real a los canales suscritos
+        self._notificar_cambio_estado(estado_anterior, nuevo_estado, empleado)
+        
         return self
+
+    def _notificar_cambio_estado(self, estado_anterior, estado_nuevo, empleado):
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            channel_layer = get_channel_layer()
+            if not channel_layer:
+                return
+
+            mensaje = {
+                'encomienda_id': self.id,
+                'codigo': self.codigo,
+                'estado_anterior': estado_anterior,
+                'estado_nuevo': estado_nuevo,
+                'empleado': str(empleado),
+                'timestamp': timezone.now().isoformat(),
+            }
+
+            # Notificar al grupo global (lista de encomiendas y feed)
+            async_to_sync(channel_layer.group_send)(
+                'encomiendas_global',
+                {'type': 'encomienda_estado_cambio', **mensaje}
+            )
+
+            # Notificar al grupo específico de esta encomienda
+            async_to_sync(channel_layer.group_send)(
+                f'encomienda_{self.id}',
+                {'type': 'encomienda_estado_cambio', **mensaje}
+            )
+
+            # Notificar al dashboard con estadísticas actualizadas
+            stats = {
+                'activas':     Encomienda.objects.activas().count(),
+                'en_transito': Encomienda.objects.en_transito().count(),
+                'con_retraso': Encomienda.objects.con_retraso().count(),
+            }
+            async_to_sync(channel_layer.group_send)(
+                'dashboard',
+                {'type': 'dashboard_actualizar', 'stats': stats}
+            )
+        except Exception as e:
+            logger.error(f"Error enviando notificacion websocket: {e}", exc_info=True)
 
     def calcular_costo(self):
         """

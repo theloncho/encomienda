@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Lista de Encomiendas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h3">Listado de Encomiendas</h2>
+    <a href="{% url 'encomienda_crear' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> Nueva Encomienda
+    </a>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar por código o apellidos...">
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-filter"></i></span>
+                    <select name="estado" class="form-select">
+                        <option value="">Todos los estados</option>
+                        {% for value, label in estados %}
+                        <option value="{{ value }}" {% if estado_activo == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-secondary w-100">Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de Encomiendas -->
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Código</th>
+                    <th>Remitente</th>
+                    <th>Destinatario</th>
+                    <th>Ruta</th>
+                    <th>Estado</th>
+                    <th>Fecha Registro</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for enc in encomiendas %}
+                <tr class="fila-link" data-href="{% url 'encomienda_detalle' enc.pk %}">
+                    <td><strong>{{ enc.codigo }}</strong></td>
+                    <td>{{ enc.remitente.nombre_completo }}</td>
+                    <td>{{ enc.destinatario.nombre_completo }}</td>
+                    <td>{{ enc.ruta.origen }} - {{ enc.ruta.destino }}</td>
+                    <td>
+                        <span class="badge-estado badge-{{ enc.estado }}">
+                            {{ enc.get_estado_display }}
+                        </span>
+                    </td>
+                    <td>{{ enc.fecha_registro|date:'d/m/Y' }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        No se encontraron encomiendas que coincidan con los filtros.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white pt-3 pb-2">
+        {% include 'partials/paginacion.html' %}
+    </div>
+</div>
+{% endblock %}

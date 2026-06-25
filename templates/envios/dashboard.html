@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — Encomiendas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center">
+        <h2 class="h3 mb-0 me-3">Dashboard</h2>
+        <span id="ws-badge" class="badge bg-secondary">Conectando...</span>
+    </div>
+    <a href="{% url 'encomienda_crear' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> Nueva Encomienda
+    </a>
+</div>
+
+<div class="row mb-4">
+  {% include 'partials/stat_card.html' with label='Activas' valor=total_activas icono='shipping-fast' color_hex='#0d6efd' id_val='stat-activas' %}
+  {% include 'partials/stat_card.html' with label='En tránsito' valor=en_transito icono='truck' color_hex='#0d6efd' id_val='stat-en-transito' %}
+  {% include 'partials/stat_card.html' with label='Con retraso' valor=con_retraso icono='exclamation-triangle' color_hex='#dc3545' id_val='stat-con-retraso' %}
+  {% include 'partials/stat_card.html' with label='Entregadas hoy' valor=entregadas_hoy icono='check-circle' color_hex='#198754' id_val='stat-entregadas-hoy' %}
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0">Últimas Encomiendas Registradas</h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Código</th>
+                            <th>Remitente</th>
+                            <th>Destinatario</th>
+                            <th>Ruta</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for enc in ultimas %}
+                        <tr class="fila-link" data-href="{% url 'encomienda_detalle' enc.pk %}" id="row-{{ enc.codigo }}">
+                            <td><strong>{{ enc.codigo }}</strong></td>
+                            <td>{{ enc.remitente.nombre_completo }}</td>
+                            <td>{{ enc.destinatario.nombre_completo }}</td>
+                            <td>{{ enc.ruta.origen }} - {{ enc.ruta.destino }}</td>
+                            <td id="status-{{ enc.codigo }}">
+                                <span class="badge-estado badge-{{ enc.estado }}">
+                                    {{ enc.get_estado_display }}
+                                </span>
+                            </td>
+                            <td>{{ enc.fecha_registro|date:'d/m/Y' }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">No hay encomiendas registradas aún.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-white text-center">
+                <a href="{% url 'encomienda_lista' %}" class="text-decoration-none">Ver todas las encomiendas</a>
+            </div>
+        </div>
+        
+        <!-- Progress Bar (oculta por defecto) -->
+        <div class="card shadow-sm mb-4 d-none" id="progreso-card">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0">Progreso de Tarea Masiva</h5>
+            </div>
+            <div class="card-body">
+                <div class="progress" style="height: 25px;">
+                    <div id="progreso-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Feed de actividad en tiempo real -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Feed de actividad</h5>
+                <span class="badge bg-primary rounded-pill" id="feed-count">0</span>
+            </div>
+            <ul class="list-group list-group-flush" id="feed-lista" style="max-height: 500px; overflow-y: auto;">
+                <li class="list-group-item text-muted text-center py-4">Esperando eventos...</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+    const wsPath = wsScheme + '://' + window.location.host + '/ws/encomiendas/';
+    
+    let socket = null;
+    let reconnectAttempts = 0;
+    let eventoCount = 0;
+    const maxAttempts = 10;
+    const badge = document.getElementById('ws-badge');
+
+    const ESTADOS = {
+        PE: 'Pendiente', TR: 'En tránsito',
+        DE: 'En destino', EN: 'Entregado', DV: 'Devuelto'
+    };
+    const COLORES_BADGE = {
+        PE: 'secondary', TR: 'primary',
+        DE: 'warning', EN: 'success', DV: 'danger'
+    };
+    const ICONOS = {
+        PE: '⏳', TR: '🚚', DE: '📍', EN: '✅', DV: '↩'
+    };
+
+    function connect() {
+        socket = new WebSocket(wsPath);
+
+        socket.onopen = function(e) {
+            console.log('WebSocket conectado al dashboard');
+            badge.textContent = 'EN VIVO';
+            badge.className = 'badge bg-success';
+            reconnectAttempts = 0; // reset
+        };
+
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            console.log('Mensaje recibido:', data);
+
+            if (data.tipo === 'conectado' || data.tipo === 'stats_iniciales' || data.tipo === 'stats_actualizado' || data.tipo === 'stats') {
+                const stats = data.stats;
+                if (stats) {
+                    updateStat('stat-activas', stats.activas);
+                    updateStat('stat-en-transito', stats.en_transito);
+                    updateStat('stat-con-retraso', stats.con_retraso);
+                    if (stats.entregadas_hoy !== undefined) {
+                        updateStat('stat-entregadas-hoy', stats.entregadas_hoy);
+                    }
+                }
+            } else if (data.tipo === 'estado_cambio') {
+                agregarAlFeed(data);
+                mostrarToast(data);
+                actualizarFilaTabla(data.codigo, data.estado_nuevo);
+            } else if (data.tipo === 'progreso') {
+                const pct = Math.round((data.actual / data.total) * 100);
+                actualizarBarra(pct);
+            }
+        };
+
+        socket.onclose = function(e) {
+            console.warn('WebSocket desconectado. Intentando reconectar...');
+            badge.textContent = 'Desconectado';
+            badge.className = 'badge bg-danger';
+
+            if (reconnectAttempts < maxAttempts) {
+                // Backoff exponencial
+                const delay = Math.pow(2, reconnectAttempts) * 1000;
+                reconnectAttempts++;
+                setTimeout(connect, delay);
+            } else {
+                badge.textContent = 'Error de Conexión';
+            }
+        };
+
+        socket.onerror = function(err) {
+            console.error('Error de WebSocket:', err);
+            socket.close();
+        };
+    }
+
+    function updateStat(elementId, newValue) {
+        const el = document.getElementById(elementId);
+        if (el && el.textContent != newValue) {
+            el.style.transition = 'transform 0.3s ease, color 0.3s ease';
+            el.style.transform = 'scale(1.2)';
+            el.style.color = '#0d6efd';
+            el.textContent = newValue;
+
+            setTimeout(() => {
+                el.style.transform = 'scale(1)';
+                el.style.color = '';
+            }, 300);
+        }
+    }
+
+    function actualizarBarra(pct) {
+        const card = document.getElementById('progreso-card');
+        const bar = document.getElementById('progreso-bar');
+        if (card && bar) {
+            card.classList.remove('d-none');
+            bar.style.width = pct + '%';
+            bar.textContent = pct + '%';
+            bar.setAttribute('aria-valuenow', pct);
+            if (pct >= 100) {
+                setTimeout(() => { card.classList.add('d-none'); }, 3000);
+            }
+        }
+    }
+
+    function actualizarFilaTabla(codigo, nuevo_estado) {
+        const td = document.getElementById('status-' + codigo);
+        if (td) {
+            td.innerHTML = `<span class="badge-estado badge-${nuevo_estado}">${ESTADOS[nuevo_estado]}</span>`;
+        }
+    }
+
+    function agregarAlFeed(data) {
+        eventoCount++;
+        document.getElementById('feed-count').textContent = eventoCount;
+        const lista = document.getElementById('feed-lista');
+        
+        // Quitar mensaje inicial
+        if (eventoCount === 1) lista.innerHTML = '';
+        
+        const hora = new Date(data.timestamp).toLocaleTimeString('es-PE');
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex align-items-center gap-3 py-3 animate__animated animate__fadeInDown';
+        li.innerHTML = `
+            <span class='fs-4'>${ICONOS[data.estado_nuevo] || ''}</span>
+            <div class='flex-grow-1'>
+                <strong>${data.codigo}</strong>
+                <div class="mt-1 mb-1">
+                    <span class='badge bg-${COLORES_BADGE[data.estado_anterior]}'>${ESTADOS[data.estado_anterior]}</span>
+                    &rarr;
+                    <span class='badge bg-${COLORES_BADGE[data.estado_nuevo]}'>${ESTADOS[data.estado_nuevo]}</span>
+                </div>
+                <small class='d-block text-muted'>Por: ${data.empleado} &bull; ${hora}</small>
+            </div>
+        `;
+        lista.insertBefore(li, lista.firstChild);
+        while (lista.children.length > 20) lista.removeChild(lista.lastChild);
+    }
+
+    function mostrarToast(data) {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;';
+            document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${COLORES_BADGE[data.estado_nuevo]} alert-dismissible fade show shadow`;
+        toast.style.cssText = 'min-width: 300px; margin-bottom: 0;';
+        toast.innerHTML = `
+            <div class='d-flex align-items-center gap-3'>
+                <span class='fs-3'>${ICONOS[data.estado_nuevo]}</span>
+                <div>
+                    <strong class="d-block">${data.codigo}</strong>
+                    <span>${ESTADOS[data.estado_anterior]} &rarr; ${ESTADOS[data.estado_nuevo]}</span>
+                    <small class="d-block mt-1 opacity-75">Por: ${data.empleado}</small>
+                </div>
+            </div>
+            <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
+        `;
+        container.appendChild(toast);
+        setTimeout(() => {
+            if(document.body.contains(toast)) {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 150);
+            }
+        }, 5000);
+    }
+
+    // Iniciar conexion
+    connect();
+});
+</script>
+{% endblock %}
+
