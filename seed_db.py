@@ -96,7 +96,7 @@ def run_seed():
         )
         e3.cambiar_estado(EstadoEnvio.EN_TRANSITO, emp, "Salió a destino")
         e3.cambiar_estado(EstadoEnvio.EN_DESTINO, emp, "Llegó a agencia destino")
-        e3.cambiar_estado(EstadoEnvio.ENTREGADO, emp, "Entregado a cliente")
+        # e3.cambiar_estado(EstadoEnvio.ENTREGADO, emp, "Entregado a cliente")
 
         print("Base de datos poblada exitosamente.")
     else:

@@ -10,7 +10,7 @@ services:
     volumes:
       - .:/app        # monta el código en tiempo real
     ports:
-      - "8000:8000"
+      - "8080:8000"
     env_file:
       - .env          # variables de entorno
     depends_on:
@@ -33,7 +33,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
       - ./redis.conf:/usr/local/etc/redis/redis.conf
